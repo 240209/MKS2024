@@ -66,7 +66,8 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+	const uint8_t	morse[] = {1,0,1,0,1,0,0,1,1,1,0,1,1,1,0,1,1,1,0,1,0,1,0,1,0,0,0,0,0,0,0,0};
+	uint32_t current_index = 0;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -97,6 +98,20 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  if (morse[current_index])
+	  {
+		  LL_GPIO_SetOutputPin(LD2_GPIO_Port, LD2_Pin);
+	  }
+	  else
+	  {
+		  LL_GPIO_ResetOutputPin(LD2_GPIO_Port, LD2_Pin);
+	  }
+
+	  LL_mDelay(200);
+
+	  current_index++;
+	  if(current_index == 32) current_index = 0;
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
