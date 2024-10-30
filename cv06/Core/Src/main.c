@@ -36,6 +36,7 @@
 /* USER CODE BEGIN PD */
 
 #define CONVERT_T_DELAY 750
+#define SAMPLE_DELAY 40
 
 /* USER CODE END PD */
 
@@ -112,37 +113,73 @@ int main(void)
 		  #include "data.dlm"
   };
 
+ /* DEFAULT LED STATUS */
+	HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, SET);
+	HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, RESET);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-    /* USER CODE END WHILE */
+	while (1) {
+		/* USER CODE END WHILE */
 
-    /* USER CODE BEGIN 3 */
+		/* USER CODE BEGIN 3 */
 
-	  int16_t temp_18b20;
-	  int16_t adc_value;
+		static enum { SHOW_NTC, SHOW_DS18B20 } state = SHOW_NTC;
 
-	  OWConvertAll();
-	  HAL_Delay(CONVERT_T_DELAY);
+		static uint32_t old_s1;
+		static uint32_t old_s2;
 
-	  /*
-	  if(OWReadTemperature(&temp_18b20) != 0)
-	  {
-		  sct_value(temp_18b20 / 10);
-	  }
-	  else
-	  {
-		  sct_value(0);
-	  }
-*/
+		uint32_t new_s1 = HAL_GPIO_ReadPin(S1_GPIO_Port, S1_Pin);
+		uint32_t new_s2 = HAL_GPIO_ReadPin(S2_GPIO_Port, S2_Pin);
 
-	  adc_value = HAL_ADC_GetValue(&hadc);
-	  sct_value(ntc_lookup[adc_value]);
-  }
-  /* USER CODE END 3 */
+		if (old_s1 && !new_s1) { // LED2, DS18B20
+			HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, SET);
+			HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, RESET);
+
+			state = SHOW_DS18B20;
+		}
+		if (old_s2 && !new_s2) { // LED1, NTC
+			HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, SET);
+			HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, RESET);
+
+			state = SHOW_NTC;
+		}
+		old_s1 = new_s1;
+		old_s2 = new_s2;
+
+		switch (state) {
+		case SHOW_NTC:
+			int16_t adc_value;
+
+			adc_value = HAL_ADC_GetValue(&hadc);
+			sct_value(ntc_lookup[adc_value]);
+
+			break;
+
+		case SHOW_DS18B20:
+			int16_t temp_18b20;
+			static uint16_t tick;
+
+			if (tick >= CONVERT_T_DELAY) {
+				OWConvertAll();
+				if (OWReadTemperature(&temp_18b20) != 0) {
+					sct_value(temp_18b20 / 10);
+				} else {
+					sct_value(0);
+				}
+
+				tick = 0;
+			}
+			tick += SAMPLE_DELAY;
+
+			break;
+		}
+
+		HAL_Delay(SAMPLE_DELAY);
+	}
+	/* USER CODE END 3 */
 }
 
 /**
